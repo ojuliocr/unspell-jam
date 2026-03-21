@@ -12,6 +12,8 @@ function love.load()
     states.menu = require("States/menu")
     states.game = require("States/game")
     states.splash = require("States/splash")
+    states.credits = require("States/credits")
+    states.tutorial = require("States/tutorial")
 
     currentState = states.splash
     if currentState.enter then currentState.enter() end

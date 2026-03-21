@@ -57,6 +57,7 @@ local combo = {
 
 local dissolveShader = love.graphics.newShader("Shaders/dissolve.glsl")
 local noiseMap = love.graphics.newImage("Shaders/noise.png")
+local hitShader = love.graphics.newShader("Shaders/hit.glsl")
 
 -------------------------
 
@@ -89,6 +90,7 @@ local noiseMap = love.graphics.newImage("Shaders/noise.png")
     local retryOpacity = {alpha = 0}
     local cloudX = 0
     local lightOpacity = {alpha = 0}
+    local comboSize = {x = 1, y = 1}
 --------------------------
 
 function game.enter()
@@ -96,7 +98,7 @@ function game.enter()
     invertedWord = ""
     typedWord = ""
     acertou = false
-    paused = false
+    paused = true
     charIndex = 1
     lvlIndex = 1
     health = 50
@@ -133,7 +135,7 @@ function game.enter()
     for i = #words, 1, -1 do
         invertedWord = invertedWord .. words[lvlIndex]:sub(i, i)
     end
-    Timer.script(function(wait) wait(0.5) Timer.tween(0.5, charPos, {x = 140}, 'out-elastic') end)
+    Timer.script(function(wait) wait(0.5) Timer.tween(0.5, charPos, {x = 140}, 'out-elastic', function() paused = false end) end)
 end
 
 function game.update(dt)
@@ -143,7 +145,7 @@ function game.update(dt)
     hitTimer.player = hitTimer.player - dt
     hitTimer.enemy = hitTimer.enemy - dt
 
-    if barValues.totalValue <= 0 and endTriggered == false then 
+    if barValues.totalValue <= 0 and endTriggered == false then
         gameState = "lose"
         endTriggered = true
         screen:setShake(20)
@@ -155,13 +157,13 @@ function game.update(dt)
         Timer.tween(0.1, retryOpacity, {alpha = 1}, "linear")
     end
 
-    if paused then return end 
-
     cloudX = cloudX - 50 * dt
 
     if cloudX < -background.clouds:getWidth() then
         cloudX = cloudX + background.clouds:getWidth()
     end
+
+    if paused then return end 
 
     countdownTime = countdownTime - dt
      if countdownTime <= 0 then
@@ -201,6 +203,12 @@ function game.textinput(t)
 
     if typedWord == words[lvlIndex] then
         acertou = true
+        if comboMeter < 3 then
+            Timer.script(function(wait) 
+            Timer.tween(0.1, comboSize, {x = 1.5, y = 1.5}, 'out-quad')
+            wait(0.1) 
+            Timer.tween(0.1, comboSize, {x = 1, y = 1}, 'out-quad') end)
+        end
         if comboMeter <= 2 then
             comboMeter = comboMeter + 1
         end
@@ -209,8 +217,8 @@ function game.textinput(t)
         Timer.tween(0.1, barValues, {totalValue = barValues.totalValue + barValues.PlayerAdd}, "linear")
         --
         dissolve.threshold = 1
-        Timer.tween(1.0, dissolve, {threshold = 0}, "linear", function() dissolve.threshold = 1 wordOpacity.alpha = 0 end)
-        Timer.after(1.5, function() nxtLevel() end)
+        Timer.tween(1, dissolve, {threshold = 0}, "linear", function() dissolve.threshold = 1 wordOpacity.alpha = 0 end)
+        Timer.after(1.1, function() nxtLevel() end)
     end
 
 end
@@ -263,18 +271,17 @@ function game.draw()
         x = x + lw
     end
 
-    if comboMeter == 3 then
-        love.graphics.draw(combo.x3, 370, 250)
-        love.graphics.print(barValues.enemy .."  ".. barValues.playerSub .."  ".. barValues.PlayerAdd, 500, 500)
-    elseif comboMeter == 2 then
-        love.graphics.draw(combo.x2, 370, 250)
-        love.graphics.print(barValues.enemy .."  ".. barValues.playerSub .."  ".. barValues.PlayerAdd, 500, 500)
-    elseif comboMeter == 1 then
-        love.graphics.draw(combo.x1, 370, 250)
-        love.graphics.print(barValues.enemy .."  ".. barValues.playerSub .."  ".. barValues.PlayerAdd, 500, 500)
-    else
-        love.graphics.print(barValues.enemy .."  ".. barValues.playerSub .."  ".. barValues.PlayerAdd, 500, 500)
+    if comboMeter >= 1 then
+        local img = combo["x" .. comboMeter]
+        local iw = img:getWidth()
+        local ih = img:getHeight()
+        love.graphics.push()
+        love.graphics.translate(370 + iw/2, 250 + ih/2)
+        love.graphics.scale(comboSize.x, comboSize.y)
+        love.graphics.draw(img, -iw/2, -ih/2)
+        love.graphics.pop()
     end
+    
 
     local barW = 525
     local barH = 40
@@ -325,28 +332,28 @@ function drawPlayer()
     local shakeX, shakeY = 0, 0
 
     if hitTimer.player > 0 then
-        love.graphics.setBlendMode("add")
+        love.graphics.setShader(hitShader)
         shakeX = math.random(-8, 8)
         shakeY = math.random(-8, 8)
     end
     
     love.graphics.draw(mainCharacter, charPos.x + shakeX, 290 + shakeY)
 
-    love.graphics.setBlendMode("alpha")
+    love.graphics.setShader()
 end
 
 function drawEnemy()
       local shakeX, shakeY = 0, 0
 
     if hitTimer.enemy > 0 then
-        love.graphics.setBlendMode("add")
+        love.graphics.setShader(hitShader)
         shakeX = math.random(-8, 8)
         shakeY = math.random(-8, 8)
     end
 
     love.graphics.draw(babyDemon, 920 + shakeX, 250 + shakeY)
 
-    love.graphics.setBlendMode("alpha")
+    love.graphics.setShader()
 end
 
 function drawEnd(state)
