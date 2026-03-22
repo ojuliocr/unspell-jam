@@ -7,13 +7,16 @@ local mooriHead = love.graphics.newImage("Assets/mooriHead.png")
 local logo = love.graphics.newImage("Assets/logo.png")
 local font = love.graphics.newFont("Fonts/Irish Grover.ttf", 80)
 local star = love.graphics.newImage("Assets/star.png")
+local bgMusic = love.audio.newSource("Assets/SFX/menu_music.mp3", "stream")
 local selected = 1
 local paused = false
 
 local transition = {alpha = 1}
 
 function menu.enter()
-
+    selected = 1
+    bgMusic:setLooping(true)
+    bgMusic:play()
     love.graphics.setFont(font)
 
     Timer.tween(0.5, transition, {alpha = 0}, "linear", function() paused = false end)

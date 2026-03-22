@@ -20,6 +20,19 @@ local push = require "Libraries/push"
 
 -- LOAD ASSETS --
 
+local enemies = {
+    baby = {
+        sprite = love.graphics.newImage("Assets/babyDemon.png"),
+        chibi = love.graphics.newImage("Assets/babyChibi.png"),
+        card = love.graphics.newArrayImage("Assets/babyCard.png")
+    },
+    rat = {
+        sprite = love.graphics.newImage("Assets/ratKing.png"),
+        chibi = love.graphics.newImage("Assets/ratChibi.png"),
+        card = love.graphics.newArrayImage("Assets/ratCard.png")
+    }
+}
+
 local background = {
     n1 = love.graphics.newImage("Assets/Background/1.png"),
     n2 = love.graphics.newImage("Assets/Background/2.png"),
@@ -38,11 +51,9 @@ local endCharacter =  {
     lose2 = love.graphics.newImage("Assets/charLose2.png")
 }
 local mainCharacter = love.graphics.newImage("Assets/mainCharacter.png")
-local babyDemon = love.graphics.newImage("Assets/babyDemon.png")
 local ribbon = love.graphics.newImage("Assets/ribbon.png")
 local font = love.graphics.newFont("Fonts/Irish Grover.ttf", 80)
 local mooriChibi = love.graphics.newImage("Assets/mooriChibi.png")
-local babyChibi = love.graphics.newImage("Assets/babyChibi.png")
 local progressBar = love.graphics.newImage("Assets/progressBar.png")
 local light = love.graphics.newImage("Assets/light.png")
 local combo = {
@@ -50,7 +61,6 @@ local combo = {
     x2 = love.graphics.newImage("Assets/combo2.png"),
     x3 = love.graphics.newImage("Assets/combo3.png")
 }
-
 -------------------------
 
 -- LOAD SHADERS --
@@ -76,10 +86,11 @@ local hitShader = love.graphics.newShader("Shaders/hit.glsl")
     local endTriggered = false
     local isRetry = false
     local comboMeter = 0
+    local currentEnemy = enemies.baby
 ----------------------------------------
 -- TWEEN VARIABLES --
 
-    local dissolve = {threshold = 1}
+    local dissolve = {threshold = 1, thresholdEnemy = 1}
     local wordOpacity = {alpha = 1}
     local charPos = {x = -500}
     local charColor = {255, 255, 255}
@@ -93,7 +104,7 @@ local hitShader = love.graphics.newShader("Shaders/hit.glsl")
     local comboSize = {x = 1, y = 1}
 --------------------------
 
-function game.enter()
+function game.enter(enemyName)
 ---------------------------------------------
     invertedWord = ""
     typedWord = ""
@@ -102,19 +113,21 @@ function game.enter()
     charIndex = 1
     lvlIndex = 1
     health = 50
-    countdownTime = 1
+    countdownTime = 0
     hitTimer.player = 0
     hitTimer.enemy = 0
     hitDuration = 0.3
-    gameState = ""
+    gameState = "card"
     endTriggered = false
     isRetry = false
     comboMeter = 0
+    currentEnemy = enemies[enemyName]
 ----------------------------------------
 -- TWEEN VARIABLES --
 
     dissolve.threshold = 1
-    wordOpacity.alpha = 1
+    dissolve.thresholdEnemy = 1
+    wordOpacity.alpha = 0
     charPos.x = -500
     charColor = {255, 255, 255}
     typedLetters = {}
@@ -135,7 +148,7 @@ function game.enter()
     for i = #words, 1, -1 do
         invertedWord = invertedWord .. words[lvlIndex]:sub(i, i)
     end
-    Timer.script(function(wait) wait(0.5) Timer.tween(0.5, charPos, {x = 140}, 'out-elastic', function() paused = false end) end)
+    Timer.script(function(wait) wait(1.5) gameState = "" Timer.tween(0.5, charPos, {x = 140}, 'out-quad', function() paused = false Timer.tween(0.5, wordOpacity, {alpha = 1}, "linear") end) end)
 end
 
 function game.update(dt)
@@ -145,25 +158,48 @@ function game.update(dt)
     hitTimer.player = hitTimer.player - dt
     hitTimer.enemy = hitTimer.enemy - dt
 
+-- CONDIÇÃO DE DERROTA / RETRY --
     if barValues.totalValue <= 0 and endTriggered == false then
-        gameState = "lose"
         endTriggered = true
+        paused = true
+        gameState = "lose"
+
         screen:setShake(20)
         Timer.script(function(wait) wait(1) Timer.tween(1, statePos, {x = 720, y = 290}, 'out-quad', function() isRetry = true end) end)
-         Timer.tween(0.3, lightOpacity, {alpha = 1}, 'in-bounce')
+        Timer.tween(0.3, lightOpacity, {alpha = 1}, 'in-bounce')
+    end
+
+-- CONDIÇÃO DE VITÓRIA --
+    if barValues.totalValue >= 100 and endTriggered == false then
+        endTriggered = true
+        paused = true
+        gameState = "win"
+
+        screen:setShake(20)
+        Timer.script(function(wait) 
+            Timer.tween(1, dissolve, {thresholdEnemy = 0}, "linear")
+            wait(2)
+            if currentEnemy == enemies.rat then 
+                changeState("credits")
+            else
+                changeState("game", "rat")
+            end 
+        end)
     end
     
     if isRetry and retryOpacity.alpha == 0 then
         Timer.tween(0.1, retryOpacity, {alpha = 1}, "linear")
     end
 
+
+ -- EFEITO NUVEM --   
     cloudX = cloudX - 50 * dt
 
     if cloudX < -background.clouds:getWidth() then
         cloudX = cloudX + background.clouds:getWidth()
     end
 
-    if paused then return end 
+    if paused or endTriggered then return end 
 
     countdownTime = countdownTime - dt
      if countdownTime <= 0 then
@@ -226,8 +262,12 @@ end
 function game.keypressed(key)
     if acertou then return end
 
+    if key == "return" then
+        game.enter()
+    end
+
     if key == "return" and isRetry then
-        changeState("game")
+        changeState("menu")
     end
 end
 
@@ -243,9 +283,23 @@ function game.draw()
     love.graphics.draw(ribbon, 400, 10, 0)
     love.graphics.setColor(charColor)
 
-    drawPlayer()
+    if not endTriggered then
+        drawPlayer()
+    end
+
+    if endTriggered then
+        love.graphics.draw(endCharacter.win, charPos.x, 290)
+    end
+
+    love.graphics.setShader(dissolveShader)
+    dissolveShader:send("dissolve_texture", noiseMap)
+    dissolveShader:send("dissolve_value", dissolve.thresholdEnemy)
+    dissolveShader:send("burn_size", 0.08)
+    dissolveShader:send("burn_color", {1.0, 0.4, 0.8, 1.0})
 
     drawEnemy()
+
+    love.graphics.setShader()
 
     love.graphics.setColor(0, 0, 0, wordOpacity.alpha)
     love.graphics.setShader(dissolveShader)
@@ -302,7 +356,7 @@ function game.draw()
 
     love.graphics.draw(mooriChibi, barX + playerW - 100 * 2, 690)
 
-    love.graphics.draw(babyChibi, barX + playerW + 100/2, 690)
+    love.graphics.draw(currentEnemy.chibi, barX + playerW + 100/2, 690)
 
     if gameState == "lose" then
         drawEnd(lose)
@@ -310,6 +364,10 @@ function game.draw()
 
     if isRetry == true then
         drawRetry()
+    end
+
+    if gameState == "card" then
+        love.graphics.draw(currentEnemy.card, 0, 0)
     end
 
 end
@@ -351,7 +409,7 @@ function drawEnemy()
         shakeY = math.random(-8, 8)
     end
 
-    love.graphics.draw(babyDemon, 920 + shakeX, 250 + shakeY)
+    love.graphics.draw(currentEnemy.sprite, 920 + shakeX, 250 + shakeY)
 
     love.graphics.setShader()
 end
@@ -399,7 +457,9 @@ function nxtLevel()
     for i = #words, 1, -1 do
         invertedWord = invertedWord .. words[lvlIndex]:sub(i, i)
     end
-    Timer.tween(0.5, wordOpacity, {alpha = 1}, "linear", function() acertou = false end)
+    if not endTriggered then
+        Timer.tween(0.5, wordOpacity, {alpha = 1}, "linear", function() acertou = false end)
+    end
 end
 
 function playerHit()

@@ -2,6 +2,7 @@ local credits = {}
 
 local Timer = require "Libraries/timer"
 local creditsImg = love.graphics.newImage("Assets/credits.png")
+local font = love.graphics.newFont("Fonts/Irish Grover.ttf", 50)
 local paused = false
 
 local transition = {alpha = 1}
@@ -18,6 +19,8 @@ end
 
 function credits.draw()
     love.graphics.draw(creditsImg, 0, 0)
+    love.graphics.setFont(font)
+    love.graphics.print("Press ENTER to return", 700, 1000)
     love.graphics.setColor(0,0,0,transition.alpha)
     love.graphics.rectangle('fill',0,0,1920,1080)
 end
