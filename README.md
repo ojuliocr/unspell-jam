@@ -1,12 +1,14 @@
 # Unspell
 
+![Unspell gameplay](Assets/header.png)
+
 A word-dueling game built in 9 days for **LÖVE Jam 2026**.
 
 🔗 Play it: [mutantcapybara.itch.io/unspell](https://mutantcapybara.itch.io/unspell)
 
 ## About
 
-Unspell is a word-dueling game where players face off using vocabulary and quick thinking instead of reflexes. Built from scratch for LÖVE Jam 2026 using the LÖVE2D framework.
+Unspell is a word-dueling game where a word appears at the top of the screen with its letters reversed (last letter first). Type it correctly, fast, before your life runs out. Built from scratch for LÖVE Jam 2026 using the LÖVE2D framework.
 
 ## My Role
 
